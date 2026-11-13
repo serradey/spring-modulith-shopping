@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: cart-order-app
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shoppingdb}
+    username: ${SPRING_DATASOURCE_USERNAME:shopping}
+    password: ${SPRING_DATASOURCE_PASSWORD:shopping}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Spring Modulith pre-serializes the externalized event to JSON bytes, so the producer writes
+      # those raw bytes as-is (avoids double serialization).
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: true
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

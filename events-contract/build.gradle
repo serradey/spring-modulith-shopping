@@ -1,0 +1,11 @@
+plugins {
+    id 'java-library'
+}
+
+description = 'Shared integration event contract published by Cart and consumed by Analytics over Kafka'
+
+dependencies {
+    // Jackson annotations only (polymorphic type deduction for the sealed event hierarchy).
+    // Framework-neutral: no Spring or JPA dependencies.
+    api 'com.fasterxml.jackson.core:jackson-annotations:2.18.2'
+}

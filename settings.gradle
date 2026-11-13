@@ -1,0 +1,5 @@
+rootProject.name = 'spring-modulith-shopping-showcase'
+
+include 'events-contract'
+include 'cart-order-app'
+include 'analytics-app'
