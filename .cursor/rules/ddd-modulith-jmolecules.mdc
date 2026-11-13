@@ -1,0 +1,48 @@
+---
+description: DDD bounded contexts as modules, jMolecules aggregates, single vs cross-transaction coordination, events to Kafka
+globs: "**/*.java"
+alwaysApply: false
+---
+
+# DDD + Spring Modulith + jMolecules
+
+Apply when designing or implementing domain structure in a Spring Boot app using Spring Modulith and jMolecules.
+
+## 1. Bounded context → Module
+
+- One **DDD bounded context** = one **application module** (Spring Modulith).
+- Implement as a **direct sub-package** of the application root package (e.g. `com.example.order`, `com.example.inventory`).
+- Document the module in `package-info.java` (e.g. reference `ApplicationModules`). Keep internals in nested packages (e.g. `order.internal`) so Modulith can enforce boundaries.
+- Verify with `ApplicationModules.of(Application.class).verify()` in tests.
+
+## 2. Transactional boundary → Aggregate root
+
+- Domain entities that are **transactional boundaries** (loaded/saved as a unit, identity, invariants) = **jMolecules aggregate roots**.
+- Model as: `implements AggregateRoot<Self, IdType>` (types) or `@AggregateRoot` (annotations). Use a dedicated identifier type (e.g. `OrderId`, `CustomerId`) implementing `Identifier`.
+- Entities that belong to one aggregate use `Entity<AggregateRootType, EntityId>` or `@Entity` and are only changed via that aggregate root.
+
+## 3. Single transaction, multiple aggregates (same module)
+
+- When **one or more** aggregate (root) changes must happen in **one transaction**, perform them in a **module service method** annotated with `@Transactional`.
+- The service lives in the module that owns the use case; it can load/save multiple aggregates in the same transaction. Publish domain events via `ApplicationEventPublisher.publishEvent(...)` at the end of the same transaction (in-process listeners run after commit when using Modulith event publication).
+
+## 4. Multiple transactions / cross-module → Modulith events
+
+- When **two or more** aggregate (or module) changes must happen in **separate transactions** (e.g. different modules, eventual consistency), use **Spring Modulith application events**.
+- **Publisher**: In the originating module service (within its transaction), publish a **domain event** (e.g. record implementing `DomainEvent`) via `ApplicationEventPublisher.publishEvent(...)`.
+- **Consumer**: In the consuming module, use `@ApplicationModuleListener` on a method that takes the event type. Do not inject the other module's types; depend only on the event type. Use Event Publication Registry (EPR) if you need at-least-once and tracking.
+
+## 5. Externalize events → Kafka by default
+
+- **Default**: Externalize application/module events to **Kafka** (e.g. `spring-modulith-events-kafka` + `spring-kafka`). Use for cross-service or async integration.
+- **Override**: If the user or requirements say otherwise (e.g. in-process only, or another broker), use that instead (e.g. in-process only, or AMQP/JMS via the corresponding Modulith events module).
+
+## Quick reference
+
+| Decision | Use this |
+|----------|----------|
+| New bounded context | New package = module (subpackage of app root) |
+| Entity is transactional boundary | jMolecules `AggregateRoot` (+ identifier type) |
+| 1+ aggregates, one transaction | Module service method with `@Transactional` |
+| 2+ aggregates/modules, multiple transactions | Modulith events: `publishEvent` + `@ApplicationModuleListener` |
+| Event externalization | Kafka (`spring-modulith-events-kafka`) unless told otherwise |
